@@ -23,6 +23,22 @@ This tool retrieves both orgs, **canonicalizes the XML** (pretty-print + sort si
   sf org login web --alias uat
   ```
 
+## Installation
+
+**Option 1 — Clone the repo**
+```bash
+git clone https://github.com/klsomanath/sf-org-diff.git
+cd sf-org-diff
+```
+
+**Option 2 — Download just the two files**
+
+Grab these two files from the [releases page](https://github.com/klsomanath/sf-org-diff/releases) and put them in the same folder:
+- `compare_orgs.py`
+- `report_template.html`
+
+No `pip install` or virtual environment needed — just Python 3.9+ and the `sf` CLI.
+
 ## Usage
 
 ```bash
