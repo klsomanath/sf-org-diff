@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Org diff &middot; __ORG_A__ vs __ORG_B__</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161922; --panel-2:#1b1f2a; --line:#262b38;
+    --text:#d7dce5; --muted:#8b93a7; --accent:#6ea8fe;
+    --add-bg:rgba(63,185,80,.14); --add-edge:#2ea043; --add-no:#1c2b1e;
+    --del-bg:rgba(248,81,73,.13); --del-edge:#f85149; --del-no:#2b1d1f;
+    --mono:"SFMono-Regular",ui-monospace,"JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5}
+  header{background:linear-gradient(180deg,#12151d,#0f1115);
+    border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .topbar{position:sticky;top:0;z-index:5;background:var(--bg)}
+  h1{font-size:15px;font-weight:600;margin:0;letter-spacing:.2px}
+  .orgs{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+  .orgs b{color:var(--text)}
+  .stats{display:flex;gap:14px;margin-left:auto;font-size:12.5px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
+    border:1px solid var(--line);background:var(--panel);color:var(--muted)}
+  .pill b{color:var(--text)}
+  .dot{width:8px;height:8px;border-radius:50%}
+  .dot.a{background:var(--del-edge)} .dot.b{background:var(--add-edge)} .dot.c{background:var(--accent)}
+  .toolbar{padding:10px 22px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .toggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .toggle button{background:var(--panel);color:var(--muted);border:0;padding:6px 13px;cursor:pointer;font:inherit;font-size:12.5px}
+  .toggle button.on{background:var(--accent);color:#0b0e14;font-weight:600}
+  #filter{flex:1;min-width:180px;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    color:var(--text);padding:7px 11px;font:inherit;font-size:13px}
+  .ghost{background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:12.5px}
+  main{padding:18px 22px 60px;max-width:1500px;margin:0 auto}
+  .grp-title{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+    margin:22px 0 8px}
+  .simple{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:2px}
+  .simple li{font-family:var(--mono);font-size:12.5px;padding:5px 10px;border-radius:6px;background:var(--panel)}
+  .simple.add li{border-left:3px solid var(--add-edge)}
+  .simple.del li{border-left:3px solid var(--del-edge)}
+  .file{border:1px solid var(--line);border-radius:10px;margin:12px 0;background:var(--panel)}
+  .file-head{display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer;user-select:none;
+    position:sticky;top:var(--topbar-h,96px);z-index:3;background:var(--panel);border-radius:9px 9px 0 0}
+  .file:not(.open) .file-head{border-radius:9px}
+  .file-head:hover{background:var(--panel-2)}
+  .chev{transition:transform .15s;color:var(--muted)}
+  .file.open .chev{transform:rotate(90deg)}
+  .fname{font-family:var(--mono);font-size:13px;word-break:break-all}
+  .counts{margin-left:auto;font-family:var(--mono);font-size:12px;display:flex;gap:8px}
+  .counts .a{color:var(--add-edge)} .counts .d{color:var(--del-edge)}
+  .file-body{display:none;border-top:1px solid var(--line);border-radius:0 0 9px 9px;overflow:hidden}
+  .file.open .file-body{display:block}
+  table.diff{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;table-layout:fixed}
+  .hunkhdr td{background:#11233a;color:#7da7d9;padding:3px 12px;font-size:11.5px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;z-index:0}
+  td.no{width:48px;min-width:48px;text-align:right;padding:1px 8px;color:var(--muted);
+    user-select:none;background:var(--panel-2);border-right:1px solid var(--line);white-space:nowrap}
+  td.code{padding:1px 12px;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
+  tr.del td.code,tr.del td.no{background:var(--del-bg)} tr.del td.no{background:var(--del-no)}
+  tr.ins td.code,tr.ins td.no{background:var(--add-bg)} tr.ins td.no{background:var(--add-no)}
+  td.code.del{background:var(--del-bg)} td.no.del{background:var(--del-no)}
+  td.code.ins{background:var(--add-bg)} td.no.ins{background:var(--add-no)}
+  td.code.empty{background:#12151d}
+  .sign{display:inline-block;width:1ch;color:var(--muted)}
+  tr.ins .sign{color:var(--add-edge)} tr.del .sign{color:var(--del-edge)}
+  .empty-state{color:var(--muted);padding:30px;text-align:center}
+  mark.dc{background:transparent;border-radius:3px;padding:0 1px;color:inherit}
+  mark.del-c{background:rgba(248,81,73,.55)}
+  mark.ins-c{background:rgba(63,185,80,.55)}
+</style>
+</head>
+<body>
+<div class="topbar">
+<header>
+  <h1>Metadata diff</h1>
+  <span class="orgs"><b>__ORG_A__</b> &rarr; <b>__ORG_B__</b></span>
+  <div class="stats">
+    <span class="pill"><span class="dot a"></span>only in A <b id="s-a">0</b></span>
+    <span class="pill"><span class="dot b"></span>only in B <b id="s-b">0</b></span>
+    <span class="pill"><span class="dot c"></span>changed <b id="s-c">0</b></span>
+  </div>
+</header>
+<div class="toolbar">
+  <div class="toggle">
+    <button id="t-split" class="on" onclick="setView('split')">Split</button>
+    <button id="t-unified" onclick="setView('unified')">Unified</button>
+  </div>
+  <input id="filter" placeholder="Filter files by name…" oninput="applyFilter()">
+  <button class="ghost" onclick="toggleAll(true)">Expand all</button>
+  <button class="ghost" onclick="toggleAll(false)">Collapse all</button>
+</div>
+</div>
+<main id="main"></main>
+<script>
+const DATA = __DIFF_DATA__;
+let VIEW = "split";
+
+function esc(s){return (s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+// Character-level LCS diff — returns [leftHtml, rightHtml] with changed chars wrapped in <mark>.
+// Falls back to plain esc() for very long lines to avoid O(n*m) freeze.
+function charDiff(lt, rt){
+  if(!lt||!rt||lt.length*rt.length>80000) return [esc(lt||''),esc(rt||'')];
+  const m=lt.length, n=rt.length;
+  const dp=[];
+  for(let i=0;i<=m;i++) dp[i]=new Int32Array(n+1);
+  for(let i=1;i<=m;i++)
+    for(let j=1;j<=n;j++)
+      dp[i][j]=lt[i-1]===rt[j-1]?dp[i-1][j-1]+1:Math.max(dp[i-1][j],dp[i][j-1]);
+  const ops=[]; let i=m,j=n;
+  while(i>0||j>0){
+    if(i>0&&j>0&&lt[i-1]===rt[j-1]){ops.push('e');i--;j--;}
+    else if(j>0&&(i===0||dp[i][j-1]>=dp[i-1][j])){ops.push('i');j--;}
+    else{ops.push('d');i--;}
+  }
+  ops.reverse();
+  let li=0,ri=0,lh='',rh='',k=0;
+  while(k<ops.length){
+    if(ops[k]==='e'){lh+=esc(lt[li]);rh+=esc(rt[ri]);li++;ri++;k++;}
+    else{
+      let ds='',is='';
+      while(k<ops.length&&ops[k]!=='e'){
+        if(ops[k]==='d'){ds+=esc(lt[li]);li++;}
+        else{is+=esc(rt[ri]);ri++;}
+        k++;
+      }
+      if(ds)lh+='<mark class="dc del-c">'+ds+'</mark>';
+      if(is)rh+='<mark class="dc ins-c">'+is+'</mark>';
+    }
+  }
+  return [lh,rh];
+}
+
+function renderSplit(hunks){
+  let h = '<table class="diff">';
+  for(const hk of hunks){
+    h += '<tr class="hunkhdr"><td colspan="4">'+esc(hk.header)+'</td></tr>';
+    for(const r of hk.rows){
+      const lcls = r.t==='eq'?'':(r.lt!=null?'del':'');
+      const rcls = r.t==='eq'?'':(r.rt!=null?'ins':'');
+      let lhtml = r.lt==null?'':esc(r.lt);
+      let rhtml = r.rt==null?'':esc(r.rt);
+      if(r.t==='rep'&&r.lt!=null&&r.rt!=null){[lhtml,rhtml]=charDiff(r.lt,r.rt);}
+      h += '<tr>'
+        + '<td class="no '+lcls+'">'+(r.ln??'')+'</td>'
+        + '<td class="code '+(r.lt==null?'empty':lcls)+'">'+lhtml+'</td>'
+        + '<td class="no '+rcls+'">'+(r.rn??'')+'</td>'
+        + '<td class="code '+(r.rt==null?'empty':rcls)+'">'+rhtml+'</td>'
+        + '</tr>';
+    }
+  }
+  return h+'</table>';
+}
+
+function renderUnified(hunks){
+  let h = '<table class="diff">';
+  for(const hk of hunks){
+    h += '<tr class="hunkhdr"><td colspan="3">'+esc(hk.header)+'</td></tr>';
+    for(const r of hk.rows){
+      if(r.t==='eq'){
+        h += '<tr><td class="no">'+r.ln+'</td><td class="no">'+r.rn+'</td><td class="code"><span class="sign"> </span>'+esc(r.lt)+'</td></tr>';
+      } else {
+        let lhtml=r.lt!=null?esc(r.lt):null, rhtml=r.rt!=null?esc(r.rt):null;
+        if(r.t==='rep'&&r.lt!=null&&r.rt!=null){[lhtml,rhtml]=charDiff(r.lt,r.rt);}
+        if(lhtml!=null) h += '<tr class="del"><td class="no">'+r.ln+'</td><td class="no"></td><td class="code"><span class="sign">-</span>'+lhtml+'</td></tr>';
+        if(rhtml!=null) h += '<tr class="ins"><td class="no"></td><td class="no">'+r.rn+'</td><td class="code"><span class="sign">+</span>'+rhtml+'</td></tr>';
+      }
+    }
+  }
+  return h+'</table>';
+}
+
+function renderBody(file){return VIEW==='split'?renderSplit(file.hunks):renderUnified(file.hunks);}
+
+function buildFiles(){
+  const main = document.getElementById('main');
+  let html = '';
+  html += '<div class="grp-title">Changed ('+DATA.changed.length+')</div>';
+  if(!DATA.changed.length) html += '<div class="empty-state">No changed files.</div>';
+  DATA.changed.forEach((f,i)=>{
+    html += '<div class="file" data-i="'+i+'" data-name="'+esc(f.path).toLowerCase()+'">'
+      + '<div class="file-head" onclick="toggleFile('+i+')">'
+      + '<span class="chev">&#9654;</span><span class="fname">'+esc(f.path)+'</span>'
+      + '<span class="counts"><span class="a">+'+f.adds+'</span><span class="d">-'+f.dels+'</span></span>'
+      + '</div><div class="file-body" id="body-'+i+'"></div></div>';
+  });
+  if(DATA.only_a.length){
+    html += '<div class="grp-title">Only in A &middot; '+esc(DATA.org_a)+'</div><ul class="simple del">'
+      + DATA.only_a.map(p=>'<li>'+esc(p)+'</li>').join('') + '</ul>';
+  }
+  if(DATA.only_b.length){
+    html += '<div class="grp-title">Only in B &middot; '+esc(DATA.org_b)+'</div><ul class="simple add">'
+      + DATA.only_b.map(p=>'<li>'+esc(p)+'</li>').join('') + '</ul>';
+  }
+  main.innerHTML = html;
+  document.getElementById('s-a').textContent = DATA.only_a.length;
+  document.getElementById('s-b').textContent = DATA.only_b.length;
+  document.getElementById('s-c').textContent = DATA.changed.length;
+}
+
+function toggleFile(i){
+  const el = document.querySelector('.file[data-i="'+i+'"]');
+  const body = document.getElementById('body-'+i);
+  const opening = !el.classList.contains('open');
+  el.classList.toggle('open');
+  if(opening && !body.dataset.rendered){ body.innerHTML = renderBody(DATA.changed[i]); body.dataset.rendered='1'; }
+}
+
+function toggleAll(open){
+  document.querySelectorAll('.file').forEach(el=>{
+    const i = +el.dataset.i;
+    if(open && !el.classList.contains('open')) toggleFile(i);
+    if(!open) el.classList.remove('open');
+  });
+}
+
+function setView(v){
+  VIEW = v;
+  document.getElementById('t-split').classList.toggle('on',v==='split');
+  document.getElementById('t-unified').classList.toggle('on',v==='unified');
+  document.querySelectorAll('.file-body').forEach(b=>{ if(b.dataset.rendered){ const i=+b.id.split('-')[1]; b.innerHTML=renderBody(DATA.changed[i]); }});
+}
+
+function applyFilter(){
+  const q = document.getElementById('filter').value.toLowerCase();
+  document.querySelectorAll('.file').forEach(el=>{ el.style.display = el.dataset.name.includes(q)?'':'none'; });
+}
+
+buildFiles();
+function setTopbarH(){
+  const t=document.querySelector('.topbar');
+  if(t) document.documentElement.style.setProperty('--topbar-h', t.offsetHeight + 'px');
+}
+setTopbarH();
+window.addEventListener('resize', setTopbarH);
+</script>
+</body>
+</html>
