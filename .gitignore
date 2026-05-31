@@ -1,0 +1,24 @@
+# Generated comparison output
+org-compare/
+*/report.html
+*/report.md
+*/diff_data.json
+diffs/
+
+# Salesforce retrieved source / project scaffolding
+orgA/
+orgB/
+.sf/
+.sfdx/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
