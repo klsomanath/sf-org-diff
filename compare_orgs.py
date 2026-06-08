@@ -58,7 +58,7 @@ SFDX_PROJECT = {
     "name": "org-compare",
     "namespace": "",
     "sfdcLoginUrl": "https://login.salesforce.com",
-    "sourceApiVersion": "60.0",
+    "sourceApiVersion": "67.0",
 }
 
 # Make ElementTree emit the default namespace without ns0: prefixes.
@@ -200,6 +200,28 @@ def build_hunks(la, lb, context=3):
     return hunks
 
 
+TYPE_FOLDERS = {
+    "classes": "ApexClass", "triggers": "ApexTrigger", "permissionsets": "PermissionSet",
+    "permissionsetgroups": "PermissionSetGroup", "flows": "Flow", "layouts": "Layout",
+    "profiles": "Profile", "objects": "CustomObject", "labels": "CustomLabels",
+    "customMetadata": "CustomMetadata", "lwc": "LightningComponentBundle",
+    "flexipages": "FlexiPage", "standardValueSets": "StandardValueSet", "pages": "ApexPage",
+    "components": "ApexComponent",
+}
+
+
+def component_type(rel: str) -> str:
+    """Derive a friendly metadata type from a source-format relative path."""
+    parts = rel.split("/")
+    for i, p in enumerate(parts):
+        if p in TYPE_FOLDERS:
+            t = TYPE_FOLDERS[p]
+            if p == "objects" and i + 1 < len(parts):
+                return f"{t} ({parts[i + 1]})"  # include object API name
+            return t
+    return parts[-2] if len(parts) > 1 else "Unknown"
+
+
 def rel_map(force_app: Path) -> dict[str, Path]:
     out = {}
     for path in force_app.rglob("*"):
@@ -284,6 +306,28 @@ def render_report_html(out: Path, data: dict):
     (out / "report.html").write_text(html, encoding="utf-8")
 
 
+def _diff_rows(data: dict):
+    """Yield (file, change, type, added, removed) rows from the diff data."""
+    org_a, org_b = data["org_a"], data["org_b"]
+    for f in data["changed"]:
+        yield (f["path"], "Changed", component_type(f["path"]), f["adds"], f["dels"])
+    for p in data["only_a"]:
+        yield (p, f"Only in A ({org_a})", component_type(p), "", "")
+    for p in data["only_b"]:
+        yield (p, f"Only in B ({org_b})", component_type(p), "", "")
+
+
+def build_csv(out: Path, data: dict):
+    import csv
+    headers = ["File", "Change", "Component type", "Lines added", "Lines removed"]
+    csv_path = out / "report.csv"
+    with csv_path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(headers)
+        w.writerows(_diff_rows(data))
+    return csv_path
+
+
 def write_html_report(out: Path, org_a, org_b, only_a, only_b, changed_data):
     data = {
         "org_a": org_a, "org_b": org_b,
@@ -325,6 +369,7 @@ def main():
             sys.exit(f"ERROR: {data_path} not found. Run a full comparison first.")
         data = json.loads(data_path.read_text(encoding="utf-8"))
         render_report_html(out, data)
+        build_csv(out, data)
         print(f"Re-rendered {out / 'report.html'} from cached data.")
         sys.exit(0)
 
@@ -350,6 +395,8 @@ def main():
     only_a, only_b, changed, common_count, changed_data = compare_trees(fa_a, fa_b, out, ignore_ws)
     write_report(out, args.org_a, args.org_b, only_a, only_b, changed, common_count)
     write_html_report(out, args.org_a, args.org_b, only_a, only_b, changed_data)
+    data = json.loads((out / "diff_data.json").read_text(encoding="utf-8"))
+    build_csv(out, data)
 
     print("\n" + "=" * 60)
     print(f"Only in A ({args.org_a}): {len(only_a)}")
@@ -358,6 +405,7 @@ def main():
     print(f"Identical:                {common_count - len(changed)} / {common_count} common")
     print(f"\nVisual:     {out / 'report.html'}   <- open this in a browser")
     print(f"Report:     {out / 'report.md'}")
+    print(f"CSV:        {out / 'report.csv'}")
     print(f"Diffs:      {out / 'diffs'}")
     print("=" * 60)
 

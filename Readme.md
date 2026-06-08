@@ -68,6 +68,7 @@ Everything lands in the output directory (default `./org-compare/`):
 
 - **`report.html`** — the visual diff. Self-contained; just open it (no server).
 - `report.md` — text summary plus only-in-A / only-in-B / changed lists
+- `report.csv` — spreadsheet summary: one row per file with its change type, component type, and line counts — opens directly in Excel/Sheets for filtering, sorting, or pivoting
 - `diffs/` — one unified `.diff` per changed file (handy for grep / CI logs)
 - `diff_data.json` — cached comparison data used by `--html-only`
 - `orgA/`, `orgB/` — the retrieved (and normalized) source trees
