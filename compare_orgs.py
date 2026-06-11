@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+Author: Somanath Kornepati
 compare_orgs.py — Compare Salesforce metadata between two orgs.
 
 Pipeline:
